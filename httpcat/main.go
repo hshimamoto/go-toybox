@@ -26,9 +26,11 @@ func main() {
     for {
 	buf := make([]byte, 8192)
 	n, err := body.Read(buf)
+	if n > 0 {
+	    os.Stdout.Write(buf[:n])
+	}
 	if err != nil {
 	    break
 	}
-	os.Stdout.Write(buf[:n])
     }
 }
