@@ -100,7 +100,8 @@ func (fwd *Fwd)session(cli *ssh.Client, lconn *net.TCPConn) {
 
 func (h *Host)sshthread(cli *ssh.Client) {
     // create fwd listeners
-    for _, fwd := range(h.fwds) {
+    for _, f := range(h.fwds) {
+	fwd := f
 	addr, err := net.ResolveTCPAddr("tcp", fwd.local)
 	if err != nil {
 	    log.Println("net.ResolveTCPAddr", err)
