@@ -15,11 +15,11 @@ import (
     "time"
     "log"
     "os"
-    "io"
     "bufio"
 
     "net"
     "golang.org/x/crypto/ssh"
+    "github.com/hshimamoto/go-iorelay"
 )
 
 type Fwd struct {
@@ -78,20 +78,7 @@ func (fwd *Fwd)session(cli *ssh.Client, lconn *net.TCPConn) {
     }
     defer rconn.Close()
 
-    done1 := make(chan bool)
-    done2 := make(chan bool)
-    go func() {
-	io.Copy(lconn, rconn)
-	done1 <- true
-    }()
-    go func() {
-	io.Copy(rconn, lconn)
-	done2 <- true
-    }()
-    select {
-    case <-done1: go func() { <-done2 }()
-    case <-done2: go func() { <-done1 }()
-    }
+    iorelay.Relay(lconn, rconn)
 
     time.Sleep(time.Second)
 
