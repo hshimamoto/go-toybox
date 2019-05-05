@@ -3,6 +3,11 @@
 // vim:set sw=4 sts=4:
 //
 // ./golangbuilder
+//
+// bootstrap
+// docker run -it --rm \
+//   -v $PWD:/go/src/golangbuilder \
+//   -u $(id -u):$(id -g) -e HOME=/tmp/go golang bash
 
 package main
 
