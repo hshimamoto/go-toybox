@@ -20,6 +20,7 @@ import (
     "net"
     "golang.org/x/crypto/ssh"
     "github.com/hshimamoto/go-iorelay"
+    "github.com/hshimamoto/go-session"
 )
 
 type Fwd struct {
@@ -27,6 +28,7 @@ type Fwd struct {
 }
 
 type Host struct {
+    proxy string
     dest string
     user, pw string
     fwds []Fwd
@@ -34,6 +36,7 @@ type Host struct {
 
 func loadConfig(path string) []*Host {
     hosts := []*Host{}
+    proxy := ""
 
     f, err := os.Open(path)
     if err != nil {
@@ -47,12 +50,14 @@ func loadConfig(path string) []*Host {
 	line := strings.Trim(sc.Text(), "\n")
 	a := strings.Split(line, " ")
 	switch a[0] {
+	case "proxy":
+	    proxy = a[1]
 	case "host":
 	    if len(a) < 4 {
 		log.Println("bad line:", line)
 		continue
 	    }
-	    h = &Host { dest: a[1], user: a[2], pw: a[3] }
+	    h = &Host { proxy: proxy, dest: a[1], user: a[2], pw: a[3] }
 	    hosts = append(hosts, h)
 	case "fwd":
 	    if len(a) < 3 {
@@ -125,11 +130,32 @@ func (h *Host)sshconnect() {
 	Auth: []ssh.AuthMethod { ssh.Password(h.pw) },
 	HostKeyCallback: ssh.InsecureIgnoreHostKey(),
     }
-    cli, err := ssh.Dial("tcp", h.dest, cfg)
+    var conn net.Conn
+    var err error
+    if h.proxy == "" {
+	conn, err = session.Dial(h.dest)
+	if err != nil {
+	    log.Printf("Dial %s: %v\n", h.dest, err)
+	    return
+	}
+    } else {
+	conn, err = session.Dial(h.proxy)
+	if err != nil {
+	    log.Printf("Dial proxy %s: %v\n", h.proxy, err)
+	    return
+	}
+	conn.Write([]byte("CONNECT " + h.dest + " HTTP/1.1\r\n\r\n"))
+	buf := make([]byte, 256)
+	conn.Read(buf) // discard HTTP/1.1 200 Established
+    }
+    // start ssh through conn
+    cconn, cchans, creqs, err := ssh.NewClientConn(conn, h.dest, cfg)
     if err != nil {
-	log.Println("ssh.Dial", err)
+	log.Printf("NewClientConn %s: %v\n", h.dest, err)
+	conn.Close()
 	return
     }
+    cli := ssh.NewClient(cconn, cchans, creqs)
     log.Println("ssh connection with", h.dest)
     go h.sshthread(cli)
 }
