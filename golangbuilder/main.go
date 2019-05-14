@@ -1,5 +1,5 @@
 // golangbuilder
-// MIT License Copyright(c) 2018 Hiroshi Shimamoto
+// MIT License Copyright(c) 2018, 2019 Hiroshi Shimamoto
 // vim:set sw=4 sts=4:
 //
 // ./golangbuilder
