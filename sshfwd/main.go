@@ -5,12 +5,13 @@
 // ./sshfwd <fwd config files...>
 //
 // config file format
-// host destIP:port user password
+// host destIP:port user keyfile or password
 // fwd localIP:port remoteIP:port
 
 package main
 
 import (
+    "io/ioutil"
     "strings"
     "time"
     "log"
@@ -30,7 +31,7 @@ type Fwd struct {
 type Host struct {
     proxy string
     dest string
-    user, pw string
+    user, key string
     fwds []Fwd
 }
 
@@ -57,7 +58,7 @@ func loadConfig(path string) []*Host {
 		log.Println("bad line:", line)
 		continue
 	    }
-	    h = &Host { proxy: proxy, dest: a[1], user: a[2], pw: a[3] }
+	    h = &Host { proxy: proxy, dest: a[1], user: a[2], key: a[3] }
 	    hosts = append(hosts, h)
 	case "fwd":
 	    if len(a) < 3 {
@@ -125,13 +126,25 @@ func (h *Host)sshthread(cli *ssh.Client) {
 }
 
 func (h *Host)sshconnect() {
-    cfg := &ssh.ClientConfig {
+    cfg := &ssh.ClientConfig{
 	User: h.user,
-	Auth: []ssh.AuthMethod { ssh.Password(h.pw) },
 	HostKeyCallback: ssh.InsecureIgnoreHostKey(),
     }
+
+    buf, err := ioutil.ReadFile(h.key)
+    if err != nil {
+	// no keyfile use password
+	cfg.Auth = []ssh.AuthMethod{ ssh.Password(h.key) }
+    } else {
+	key, err := ssh.ParsePrivateKey(buf)
+	if err != nil {
+	    log.Printf("ParsePrivateKey: %s %v\n", h.key, err)
+	    return
+	}
+	cfg.Auth = []ssh.AuthMethod{ ssh.PublicKeys(key) }
+    }
+
     var conn net.Conn
-    var err error
     if h.proxy == "" {
 	conn, err = session.Dial(h.dest)
 	if err != nil {
