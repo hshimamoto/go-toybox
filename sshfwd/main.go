@@ -183,6 +183,8 @@ func (h *Host)fwdserver() {
 	for {
 	    h.sshconnect()
 	    h.forwarder()
+	    // interval
+	    time.Sleep(time.Second * 10)
 	}
     }()
 }
