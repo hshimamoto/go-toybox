@@ -117,23 +117,6 @@ func (h *Host)forwarder() {
 }
 
 func (h *Host)sshthread(cli *ssh.Client) {
-    // create fwd listeners
-    for _, f := range(h.fwds) {
-	fwd := f
-	s, err := session.NewServer(fwd.local, func(conn net.Conn) {
-	    req := FwdReq{}
-	    req.fwd = fwd
-	    req.lconn = conn
-	    h.q_fwd <- req
-	})
-	if err != nil {
-	    log.Println("session.NewServer", err)
-	    continue // TODO
-	}
-	log.Println("start listening on", fwd.local)
-	go s.Run()
-    }
-    go h.forwarder()
     // keepalive
     for {
 	cli.Conn.SendRequest("keepalive@golang.org", true, nil)
@@ -185,7 +168,28 @@ func (h *Host)sshconnect() {
     log.Println("ssh connection with", h.dest)
     h.cli = cli
     h.q_fwd = make(chan FwdReq, 1)
+    // run forwarder
+    go h.forwarder()
     go h.sshthread(cli)
+}
+
+func (h *Host)localserver() {
+    // create fwd listeners
+    for _, f := range(h.fwds) {
+	fwd := f
+	s, err := session.NewServer(fwd.local, func(conn net.Conn) {
+	    req := FwdReq{}
+	    req.fwd = fwd
+	    req.lconn = conn
+	    h.q_fwd <- req
+	})
+	if err != nil {
+	    log.Println("session.NewServer", err)
+	    continue // TODO
+	}
+	log.Println("start listening on", fwd.local)
+	go s.Run()
+    }
 }
 
 func main() {
@@ -204,6 +208,7 @@ func main() {
     for _, h := range(hosts) {
 	log.Println(h.dest, "w/", len(h.fwds), "fwds")
 	h.sshconnect()
+	h.localserver()
     }
     time.Sleep(time.Second)
     log.Println("service started. to stop the service, CTRL-C")
