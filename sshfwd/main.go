@@ -101,6 +101,7 @@ func (fwd *Fwd)session(cli *ssh.Client, lconn net.Conn) {
 }
 
 func (h *Host)forwarder() {
+    n := 0
     for {
 	cli := h.cli
 	if cli == nil {
@@ -111,16 +112,12 @@ func (h *Host)forwarder() {
 	    // handle request
 	    go req.fwd.session(cli, req.lconn)
 	case <-time.After(time.Second):
-	    // nothing to do
+	    n++
+	    if n > 60 {
+		n = 0
+		cli.Conn.SendRequest("keepalive@golang.org", true, nil)
+	    }
 	}
-    }
-}
-
-func (h *Host)sshthread(cli *ssh.Client) {
-    // keepalive
-    for {
-	cli.Conn.SendRequest("keepalive@golang.org", true, nil)
-	time.Sleep(time.Minute)
     }
 }
 
@@ -170,7 +167,6 @@ func (h *Host)sshconnect() {
     h.q_fwd = make(chan FwdReq, 1)
     // run forwarder
     go h.forwarder()
-    go h.sshthread(cli)
 }
 
 func (h *Host)localserver() {
