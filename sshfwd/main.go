@@ -139,14 +139,11 @@ func (h *Host)sshconnect() {
 	    return
 	}
     } else {
-	conn, err = session.Dial(h.proxy)
+	conn, err = session.Corkscrew(h.proxy, h.dest)
 	if err != nil {
-	    log.Printf("Dial proxy %s: %v\n", h.proxy, err)
+	    log.Printf("Corkscrew %s %s: %v\n", h.proxy, h.dest, err)
 	    return
 	}
-	conn.Write([]byte("CONNECT " + h.dest + " HTTP/1.1\r\n\r\n"))
-	buf := make([]byte, 256)
-	conn.Read(buf) // discard HTTP/1.1 200 Established
     }
     // start ssh through conn
     cconn, cchans, creqs, err := ssh.NewClientConn(conn, h.dest, cfg)
