@@ -72,7 +72,7 @@ func loadConfig(path string) []*Host {
     return hosts
 }
 
-func (fwd *Fwd)session(cli *ssh.Client, lconn *net.TCPConn) {
+func (fwd *Fwd)session(cli *ssh.Client, lconn net.Conn) {
     defer lconn.Close()
 
     log.Println("forwarding", fwd.local, "to", fwd.remote)
@@ -95,28 +95,15 @@ func (h *Host)sshthread(cli *ssh.Client) {
     // create fwd listeners
     for _, f := range(h.fwds) {
 	fwd := f
-	addr, err := net.ResolveTCPAddr("tcp", fwd.local)
+	s, err := session.NewServer(fwd.local, func(conn net.Conn) {
+	    fwd.session(cli, conn)
+	})
 	if err != nil {
-	    log.Println("net.ResolveTCPAddr", err)
-	    continue // TODO
-	}
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-	    log.Println("net.ListenTCP", err)
+	    log.Println("session.NewServer", err)
 	    continue // TODO
 	}
 	log.Println("start listening on", fwd.local)
-	go func() {
-	    defer l.Close()
-	    for {
-		conn, err := l.AcceptTCP()
-		if err != nil {
-		    log.Println("AcceptTCP", err)
-		    continue
-		}
-		go fwd.session(cli, conn)
-	    }
-	}()
+	go s.Run()
     }
     // keepalive
     for {
