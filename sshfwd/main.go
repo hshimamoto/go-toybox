@@ -28,11 +28,20 @@ type Fwd struct {
     local, remote string
 }
 
+type FwdReq struct {
+    fwd Fwd
+    lconn net.Conn
+}
+
 type Host struct {
+    // settings
     proxy string
     dest string
     user, key string
     fwds []Fwd
+    // runtime
+    cli *ssh.Client
+    q_fwd chan FwdReq
 }
 
 func loadConfig(path string) []*Host {
@@ -91,12 +100,31 @@ func (fwd *Fwd)session(cli *ssh.Client, lconn net.Conn) {
     log.Println("forwarding", fwd.local, "to", fwd.remote, "done")
 }
 
+func (h *Host)forwarder() {
+    for {
+	cli := h.cli
+	if cli == nil {
+	    break
+	}
+	select {
+	case req := <-h.q_fwd:
+	    // handle request
+	    go req.fwd.session(cli, req.lconn)
+	case <-time.After(time.Second):
+	    // nothing to do
+	}
+    }
+}
+
 func (h *Host)sshthread(cli *ssh.Client) {
     // create fwd listeners
     for _, f := range(h.fwds) {
 	fwd := f
 	s, err := session.NewServer(fwd.local, func(conn net.Conn) {
-	    fwd.session(cli, conn)
+	    req := FwdReq{}
+	    req.fwd = fwd
+	    req.lconn = conn
+	    h.q_fwd <- req
 	})
 	if err != nil {
 	    log.Println("session.NewServer", err)
@@ -105,6 +133,7 @@ func (h *Host)sshthread(cli *ssh.Client) {
 	log.Println("start listening on", fwd.local)
 	go s.Run()
     }
+    go h.forwarder()
     // keepalive
     for {
 	cli.Conn.SendRequest("keepalive@golang.org", true, nil)
@@ -154,6 +183,8 @@ func (h *Host)sshconnect() {
     }
     cli := ssh.NewClient(cconn, cchans, creqs)
     log.Println("ssh connection with", h.dest)
+    h.cli = cli
+    h.q_fwd = make(chan FwdReq, 1)
     go h.sshthread(cli)
 }
 
