@@ -115,7 +115,12 @@ func (h *Host)forwarder() {
 	    n++
 	    if n > 60 {
 		n = 0
-		cli.Conn.SendRequest("keepalive@golang.org", true, nil)
+		_, _, err := cli.SendRequest("keepalive@golang.org", true, nil)
+		if err != nil {
+		    log.Println("Failed to keepalive", err)
+		    cli.Close()
+		    h.cli = nil
+		}
 	    }
 	}
     }
@@ -164,7 +169,6 @@ func (h *Host)sshconnect() {
     cli := ssh.NewClient(cconn, cchans, creqs)
     log.Println("ssh connection with", h.dest)
     h.cli = cli
-    h.q_fwd = make(chan FwdReq, 1)
 }
 
 func (h *Host)fwdserver() {
@@ -210,6 +214,9 @@ func main() {
     }
     for _, h := range(hosts) {
 	log.Println(h.dest, "w/", len(h.fwds), "fwds")
+	// make chan first
+	h.q_fwd = make(chan FwdReq, 1)
+
 	h.fwdserver()
 	h.localserver()
     }
