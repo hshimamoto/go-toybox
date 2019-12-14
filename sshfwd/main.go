@@ -40,6 +40,7 @@ type Host struct {
     user, key string
     fwds []Fwd
     // runtime
+    cfg *ssh.ClientConfig
     cli *ssh.Client
     q_fwd chan FwdReq
 }
@@ -126,7 +127,7 @@ func (h *Host)forwarder() {
     }
 }
 
-func (h *Host)sshconnect() {
+func (h *Host)setup() {
     cfg := &ssh.ClientConfig{
 	User: h.user,
 	HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -145,7 +146,13 @@ func (h *Host)sshconnect() {
 	cfg.Auth = []ssh.AuthMethod{ ssh.PublicKeys(key) }
     }
 
+    h.cfg = cfg
+}
+
+func (h *Host)sshconnect() {
     var conn net.Conn
+    var err error
+
     if h.proxy == "" {
 	conn, err = session.Dial(h.dest)
 	if err != nil {
@@ -160,7 +167,7 @@ func (h *Host)sshconnect() {
 	}
     }
     // start ssh through conn
-    cconn, cchans, creqs, err := ssh.NewClientConn(conn, h.dest, cfg)
+    cconn, cchans, creqs, err := ssh.NewClientConn(conn, h.dest, h.cfg)
     if err != nil {
 	log.Printf("NewClientConn %s: %v\n", h.dest, err)
 	conn.Close()
@@ -216,7 +223,9 @@ func main() {
 	log.Println(h.dest, "w/", len(h.fwds), "fwds")
 	// make chan first
 	h.q_fwd = make(chan FwdReq, 1)
+	h.cli = nil
 
+	h.setup()
 	h.fwdserver()
 	h.localserver()
     }
