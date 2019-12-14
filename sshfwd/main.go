@@ -165,8 +165,15 @@ func (h *Host)sshconnect() {
     log.Println("ssh connection with", h.dest)
     h.cli = cli
     h.q_fwd = make(chan FwdReq, 1)
-    // run forwarder
-    go h.forwarder()
+}
+
+func (h *Host)fwdserver() {
+    go func() {
+	for {
+	    h.sshconnect()
+	    h.forwarder()
+	}
+    }()
 }
 
 func (h *Host)localserver() {
@@ -203,7 +210,7 @@ func main() {
     }
     for _, h := range(hosts) {
 	log.Println(h.dest, "w/", len(h.fwds), "fwds")
-	h.sshconnect()
+	h.fwdserver()
 	h.localserver()
     }
     time.Sleep(time.Second)
