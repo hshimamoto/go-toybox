@@ -13,6 +13,7 @@ package main
 
 import (
     "bufio"
+    "fmt"
     "io/ioutil"
     "log"
     "os"
@@ -96,7 +97,7 @@ func main() {
     log.Println("Hosthome:", hosthome)
     os.MkdirAll(hosthome, os.FileMode(0755))
     dockerwd := filepath.Join(dockerhome, projname)
-    cname := "gobuild-" + projname
+    cname := fmt.Sprintf("gobuild-%s-%d", projname, os.Getpid())
 
     args := []string{
 	"--name", cname, "--hostname", cname,
