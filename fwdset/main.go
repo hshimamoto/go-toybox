@@ -19,9 +19,10 @@ import (
 // Name = "name"
 // Src = ":8080"
 // Dst = "proxy:8080"
+// Limit = "10M"
 
 type fwd struct {
-    Name, Src, Dst string
+    Name, Src, Dst, Limit string
 }
 
 type fwdconfig struct {
@@ -43,7 +44,11 @@ type fwdproc struct {
 }
 
 func (fp *fwdproc)run(w chan *fwdproc) {
-    fp.cmd = exec.Command("fwd", fp.Src, fp.Dst)
+    if fp.Limit == "" {
+	fp.cmd = exec.Command("fwd", fp.Src, fp.Dst)
+    } else {
+	fp.cmd = exec.Command("fwd", fp.Src, fp.Dst, fp.Limit)
+    }
     go func() {
 	fp.cmd.Run()
 	time.Sleep(time.Second)
@@ -72,14 +77,14 @@ func manage(config string) {
 	// check state
 	for _, fp := range(fwds) {
 	    if fp.cmd == nil {
-		fmt.Printf("start %s %s %s\n", fp.Name, fp.Src, fp.Dst)
+		fmt.Printf("start %s %s %s %s\n", fp.Name, fp.Src, fp.Dst, fp.Limit)
 		// process restart
 		fp.run(w)
 	    }
 	}
 	select {
 	case fp := <-w:
-	    fmt.Printf("done %s %s %s\n", fp.Name, fp.Src, fp.Dst)
+	    fmt.Printf("done %s %s %s %s\n", fp.Name, fp.Src, fp.Dst, fp.Limit)
 	case <-time.After(time.Minute): // just for timeout
 	}
 	// reload config
@@ -93,7 +98,8 @@ func manage(config string) {
 	    // find the same
 	    found := false
 	    for _, fp := range(fwds) {
-		if (fp.Name == fwd.Name) && (fp.Src == fwd.Src) && (fp.Dst == fwd.Dst) {
+		if (fp.Name == fwd.Name) &&
+			(fp.Src == fwd.Src) && (fp.Dst == fwd.Dst) && (fp.Limit == fwd.Limit) {
 		    // keep it
 		    newfwds = append(newfwds, fp)
 		    found = true
