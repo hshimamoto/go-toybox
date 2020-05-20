@@ -64,7 +64,7 @@ func main() {
 	    log.Printf("bad option: %s\n", lim)
 	    return
 	}
-	log.Printf("Set Ratelmit %d bytes/s", mb)
+	log.Printf("Set Ratelimit %d bytes/s", mb)
     }
     s, err := session.NewServer(os.Args[1], func(conn net.Conn) {
 	defer conn.Close()
