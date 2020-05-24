@@ -1,5 +1,5 @@
 // golangbuilder
-// MIT License Copyright(c) 2018, 2019 Hiroshi Shimamoto
+// MIT License Copyright(c) 2018, 2019, 2020 Hiroshi Shimamoto
 // vim:set sw=4 sts=4:
 //
 // ./golangbuilder
@@ -69,12 +69,47 @@ func getgituser() string {
     return name
 }
 
+func loadEnvFromFile(path string) ([]string, error) {
+    f, err := os.Open(path)
+    if err != nil {
+	return nil, err
+    }
+    defer f.Close()
+
+    envs := []string{}
+    lines, err := ioutil.ReadAll(f)
+    for _, l := range strings.Split(string(lines), "\n") {
+	if strings.Index(l, "=") > 0 {
+	    envs = append(envs, l)
+	}
+    }
+
+    log.Printf("found %s\n", path)
+
+    return envs, nil
+}
+
+func loadEnv() []string {
+    envs, err := loadEnvFromFile(".golangbuilder.env")
+    if err == nil {
+	return envs
+    }
+    home := os.Getenv("HOME")
+    envs, err = loadEnvFromFile(filepath.Join(home, ".golangbuilder.env"))
+    if err != nil {
+	return nil
+    }
+    return envs
+}
+
 func main() {
     cwd, _ := os.Getwd()
     projname := filepath.Base(cwd)
     log.Println("Dir:", cwd, projname)
     gituser := getgituser()
     log.Println("User:", gituser)
+
+    envs := loadEnv()
 
     user, _ := user.Current()
     uid := user.Uid
@@ -107,5 +142,10 @@ func main() {
 	"-e", "HOME=" + dockerhome,
 	"-w", dockerwd,
     }
+
+    for _, env := range envs {
+	args = append(args, "-e", env)
+    }
+
     docker(args)
 }
