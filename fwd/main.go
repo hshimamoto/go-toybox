@@ -1,5 +1,5 @@
 // go-toybox/fwd
-// MIT License Copyright(c) 2019 Hiroshi Shimamoto
+// MIT License Copyright(c) 2019, 2020 Hiroshi Shimamoto
 // vim:set sw=4 sts=4:
 
 package main
@@ -10,6 +10,7 @@ import (
     "net"
     "os"
     "strconv"
+    "time"
 
     "github.com/hshimamoto/go-session"
     "github.com/hshimamoto/go-iorelay"
@@ -17,13 +18,15 @@ import (
 )
 
 func show_usage() {
-    fmt.Println("Version: fwd v2.0.0 in go-toyboxv")
+    fmt.Println("Version: fwd v2.0.1 in go-toyboxv")
     fmt.Println(
 `Usage: fwd <listen> <dest> [KiB/s or MiB/s]
 ex)
 	fwd :8080 www.example.com:80
 	fwd :8080 www.example.com:80 100K
-	fwd :8080 www.example.com:80 10M`)
+	fwd :8080 www.example.com:80 10M
+
+Connection will close on no communication in 1 hour`)
 }
 
 type FlowrateIO struct {
@@ -66,6 +69,7 @@ func main() {
 	}
 	log.Printf("Set Ratelimit %d bytes/s", mb)
     }
+    timeout := time.Hour
     s, err := session.NewServer(os.Args[1], func(conn net.Conn) {
 	defer conn.Close()
 	fconn, err := session.Dial(os.Args[2])
@@ -83,9 +87,9 @@ func main() {
 		r: flowrate.NewReader(fconn, mb),
 		w: flowrate.NewWriter(fconn, mb),
 	    }
-	    iorelay.Relay(f1, f2)
+	    iorelay.RelayWithTimeout(f1, f2, timeout)
 	} else {
-	    iorelay.Relay(conn, fconn)
+	    iorelay.RelayWithTimeout(conn, fconn, timeout)
 	}
     })
     if err != nil {
