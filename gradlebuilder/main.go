@@ -41,7 +41,7 @@ func setup(dir string) {
 func docker(args []string) {
     cmd := exec.Command("docker", "run", "-it", "--rm")
     cmd.Args = append(cmd.Args, args...)
-    cmd.Args = append(cmd.Args, "gradle", "bash")
+    cmd.Args = append(cmd.Args, "gradle:jdk14", "bash")
     cmd.Stdin = os.Stdin
     cmd.Stdout = os.Stdout
     cmd.Stderr = os.Stderr
