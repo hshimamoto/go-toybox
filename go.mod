@@ -12,7 +12,7 @@ require (
 	github.com/hshimamoto/go-session v0.0.0-20211024231125-7561184f2955
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f
 	github.com/nsf/termbox-go v1.1.1
-	golang.org/x/crypto v0.6.0
+	golang.org/x/crypto v0.31.0
 )
 
 require (
@@ -31,6 +31,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 )
